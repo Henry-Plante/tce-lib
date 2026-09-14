@@ -754,6 +754,5 @@ def test_max_ent():
             np.testing.assert_array_equal(a1.numbers, a2.numbers)
             np.testing.assert_allclose(a1.positions, a2.positions)
 
-    print("Test passed: Method 1 and Method 2 yield identical results!")
 
 

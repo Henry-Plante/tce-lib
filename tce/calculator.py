@@ -4,7 +4,7 @@ this module provides an `ase.calculator.Calculator` class that wraps `tce-lib`
 
 
 from dataclasses import dataclass, field
-from typing import Optional, Union, Generator, Sequence # updated import order
+from typing import Optional, Union, Generator, Sequence
 from itertools import permutations, combinations, repeat, product
 import logging
 from collections import defaultdict
@@ -19,7 +19,6 @@ from ase.data import atomic_numbers
 import numpy as np
 from numpy.typing import NDArray
 import sparse
-from scipy.spatial import KDTree
 from opt_einsum import contract
 from multiset import Multiset
 
@@ -466,7 +465,7 @@ class TCECalculator(Calculator):
 
         topological_tensors = self.get_topological_tensors(atoms)
 
-        #symbols = np.array(atoms.get_chemical_symbols())
+        
         indicator_tensor = atoms.numbers[:, None] == self.atomic_numbers[None, :]
         indicator_tensor = indicator_tensor.astype(float)
 
@@ -968,8 +967,7 @@ class TCECalculator(Calculator):
         Finds and selects subsets that maximize the feature entropy.
 
         Parameters:
-            tce.calculator
-            Matrix of sequence vectors for comparison
+            atoms_list: Matrix of sequence vectors for comparison
             k: max size of the selected atomic subsets
             epsilon (optional): tolerance parameter, default to 1.0e-3
 
