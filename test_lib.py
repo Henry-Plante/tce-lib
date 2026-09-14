@@ -22,7 +22,7 @@ import sparse
 from tce.training import LimitingRidge
 from tce.topology import symmetrize
 from tce.datasets import PresetDataset, Dataset
-from tce.calculator import TCECalculator, maximum_entropy_subset_up_to_size_k
+from tce.calculator import TCECalculator, _maximum_entropy_subset_up_to_size_k
 from tce.monte_carlo import monte_carlo, transform_model
 from tce.constants import CUTOFFS
 
@@ -742,7 +742,7 @@ def test_max_ent():
     X /= normalizer
 
     subsets_method_2 = []
-    for index_subset in maximum_entropy_subset_up_to_size_k(X, k=30):
+    for index_subset in _maximum_entropy_subset_up_to_size_k(X, k=30):
         alloy_indices = sorted(index_subset)
         subsets_method_2.append([alloys[i] for i in alloy_indices])
 
