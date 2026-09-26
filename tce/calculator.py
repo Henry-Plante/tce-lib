@@ -443,7 +443,7 @@ class TCECalculator(Calculator):
 
         return topological_tensors
 
-
+    @cite(paper_link=ORIGINAL_PAPER)
     def get_feature_vector(
         self,
         atoms: Atoms
@@ -967,7 +967,7 @@ class TCECalculator(Calculator):
         Finds and selects subsets that maximize the feature entropy.
 
         Parameters:
-            atoms_list: Matrix of sequence vectors for comparison
+            atoms_list: Sequence of atomic configurations to select from. Each configuration must have the same geometry and topology.
             k: max size of the selected atomic subsets
             epsilon (optional): tolerance parameter, default to 1.0e-3
 
