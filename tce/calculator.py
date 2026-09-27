@@ -32,11 +32,11 @@ LOGGER = logging.getLogger(__name__)
 GREEK_ALPHABET = "αβγδεζηθικλμνξοπρστυφχψω"
 LATIN_ALPHABET = "ijklmnopqrstuvwxyz"
 
-#max_ent funct for optimized matrix sorting
 def _maximum_entropy_subset_up_to_size_k(
     X: np.typing.NDArray, 
     k: int,
-    epsilon: float = 1.0e-3
+    epsilon: float = 1.0e-3,
+    starting_subset: Optional[set[int]] = None
 ) -> Generator[set[int], None, None]:
     """
     Compute maximum entropy subsets up to size k.
@@ -56,15 +56,18 @@ def _maximum_entropy_subset_up_to_size_k(
     d, n = X_proc.shape
 
     # initialize the subset with one sample, that sample being the one closest to the center
-    subset = [int(np.argmin(np.linalg.norm(X_proc, axis=0)))]
+    if not starting_subset:
+        # initialize the subset with one sample, that sample being the one closest to the center
+        starting_subset = {np.argmin(np.linalg.norm(X, axis=0)).item()}
+
+    subset = sorted(starting_subset)
 
     # initialize a mask that will make sure we only select new samples to add to the subset
     mask = np.zeros(n, dtype=bool)
     mask[subset[0]] = True
 
     # compute the covariance matrix for the current subset
-    covariance = epsilon * np.eye(d)
-    covariance += X_proc[:, subset[0]:subset[0]+1] @ X_proc[:, subset[0]:subset[0]+1].T
+    covariance = epsilon * np.eye(d) + X[:, subset] @ X[:, subset].T
 
     while len(subset) <= k:
         yield set(subset)
@@ -72,17 +75,37 @@ def _maximum_entropy_subset_up_to_size_k(
         if len(subset) == k or len(subset) == n:
             break
 
-        Y = np.linalg.solve(covariance, X_proc)   # shape: (d, n)
-        quad = np.sum(X_proc * Y, axis=0)          # shape: (n,)
+        # Let U contain the currently selected samples.
+        # covariance = epsilon * I + U @ U.T
+        U = X[:, subset]  # shape: (d, len(subset))
+
+        # Woodbury identity:
+        #
+        # (epsilon I + U U.T)^-1 X
+        #   = (1 / epsilon) *
+        #       [X - U @ solve(I + U.T U / epsilon, U.T X / epsilon)]
+        #
+        # The solve is now performed on a len(subset) x len(subset) matrix.
+        middle = epsilon * np.eye(len(subset)) + (U.T @ U)
+        correction = np.linalg.solve(middle, U.T @ X)
+        Y = (X - U @ correction) / epsilon  # shape: (d, n)
+
+        # Quadratic forms x_j^T covariance^{-1} x_j for all j at once
+        quad = np.sum(X * Y, axis=0)         # shape: (n,)
+
+        # Ignore already selected columns
         quad[mask] = 0.0
 
-        gains = np.log1p(np.maximum(quad, 0.0))
+        # compute all of the entropy gains by adding a new sample
+        gains = np.log1p(quad)
 
+        # select the new index that maximizes the entropy gain
         j_new = int(np.argmax(gains))
         subset.append(j_new)
         mask[j_new] = True
 
-        x_new = X_proc[:, j_new:j_new+1]
+        # update the covariance with the new sample
+        x_new = X[:, j_new:j_new+1]
         covariance += x_new @ x_new.T
 
 
@@ -443,6 +466,7 @@ class TCECalculator(Calculator):
 
         return topological_tensors
 
+    
     @cite(paper_link=ORIGINAL_PAPER)
     def get_feature_vector(
         self,
@@ -486,6 +510,7 @@ class TCECalculator(Calculator):
 
         return feature_vec
 
+    
     def get_normalizer(
         self,
         atoms: Atoms
@@ -508,6 +533,7 @@ class TCECalculator(Calculator):
 
         return normalizer
 
+    
     @cite(paper_link=ORIGINAL_PAPER)
     def get_batched_feature_vectors(
         self,
@@ -596,6 +622,7 @@ class TCECalculator(Calculator):
             pos += flattened.shape[1]
 
         return feature_matrix
+
     
     def _get_feature_vector_difference_for_sites(
         self,
@@ -773,6 +800,7 @@ class TCECalculator(Calculator):
         
         return total_feature_diff
 
+    
     @cite(paper_link=ORIGINAL_PAPER)
     def get_feature_vector_difference(self, initial: Atoms, final: Atoms) -> NDArray[np.floating]:
 
@@ -801,6 +829,7 @@ class TCECalculator(Calculator):
 
         raise NotImplementedError
 
+    
     def calculate(
         self,
         atoms: Optional[Atoms] = None,
@@ -860,6 +889,7 @@ class TCECalculator(Calculator):
 
         return self
 
+    
     @cite(paper_link=KMC_PAPER)
     def difference_train(self, configuration_pairs: list[tuple[Atoms, Atoms]]):
 
@@ -910,6 +940,7 @@ class TCECalculator(Calculator):
 
         return self
 
+    
     def save(self, path: Union[Path, str]):
 
         r"""
@@ -957,19 +988,22 @@ class TCECalculator(Calculator):
             raise ValueError(f"loaded object is not of type {cls.__name__}")
         return obj
 
+    
     def select_maximum_entropy_subsets(
         self,
         atoms_list: Sequence[Atoms],
         k: int,
-        epsilon: float = 1.0e-3
+        epsilon: float = 1.0e-3,
+        starting_subset: Optional[set[int]] = None
     ) -> Generator[list[Atoms], None, None]:
         r"""
         Finds and selects subsets that maximize the feature entropy.
 
-        Parameters:
+        Args:
             atoms_list: Sequence of atomic configurations to select from. Each configuration must have the same geometry and topology.
             k: max size of the selected atomic subsets
             epsilon (optional): tolerance parameter, default to 1.0e-3
+            starting_subset (optional): starting subset, defaults to the singleton set with the sample furthest from the descriptor space's center
 
         Yields:
             list[Atoms]
