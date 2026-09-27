@@ -58,7 +58,7 @@ def _maximum_entropy_subset_up_to_size_k(
     # initialize the subset with one sample, that sample being the one closest to the center
     if not starting_subset:
         # initialize the subset with one sample, that sample being the one closest to the center
-        starting_subset = {np.argmin(np.linalg.norm(X, axis=0)).item()}
+        starting_subset = {np.argmin(np.linalg.norm(X_proc, axis=0)).item()}
 
     subset = sorted(starting_subset)
 
@@ -67,7 +67,7 @@ def _maximum_entropy_subset_up_to_size_k(
     mask[subset[0]] = True
 
     # compute the covariance matrix for the current subset
-    covariance = epsilon * np.eye(d) + X[:, subset] @ X[:, subset].T
+    covariance = epsilon * np.eye(d) + X_proc[:, subset] @ X_proc[:, subset].T
 
     while len(subset) <= k:
         yield set(subset)
@@ -77,21 +77,21 @@ def _maximum_entropy_subset_up_to_size_k(
 
         # Let U contain the currently selected samples.
         # covariance = epsilon * I + U @ U.T
-        U = X[:, subset]  # shape: (d, len(subset))
+        U = X_proc[:, subset]  # shape: (d, len(subset))
 
         # Woodbury identity:
         #
         # (epsilon I + U U.T)^-1 X
         #   = (1 / epsilon) *
-        #       [X - U @ solve(I + U.T U / epsilon, U.T X / epsilon)]
+        #       [X_proc - U @ solve(I + U.T U / epsilon, U.T X_proc / epsilon)]
         #
         # The solve is now performed on a len(subset) x len(subset) matrix.
         middle = epsilon * np.eye(len(subset)) + (U.T @ U)
-        correction = np.linalg.solve(middle, U.T @ X)
-        Y = (X - U @ correction) / epsilon  # shape: (d, n)
+        correction = np.linalg.solve(middle, U.T @ X_proc)
+        Y = (X_proc - U @ correction) / epsilon  # shape: (d, n)
 
         # Quadratic forms x_j^T covariance^{-1} x_j for all j at once
-        quad = np.sum(X * Y, axis=0)         # shape: (n,)
+        quad = np.sum(X_proc * Y, axis=0)         # shape: (n,)
 
         # Ignore already selected columns
         quad[mask] = 0.0
@@ -105,7 +105,7 @@ def _maximum_entropy_subset_up_to_size_k(
         mask[j_new] = True
 
         # update the covariance with the new sample
-        x_new = X[:, j_new:j_new+1]
+        x_new = X_proc[:, j_new:j_new+1]
         covariance += x_new @ x_new.T
 
 
