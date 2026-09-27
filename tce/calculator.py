@@ -1025,7 +1025,8 @@ class TCECalculator(Calculator):
         for index_subset in _maximum_entropy_subset_up_to_size_k(
             X=feature_matrix,
             k=k,
-            epsilon=epsilon
+            epsilon=epsilon,
+            starting_subset=starting_subset
         ):
             # Sort indices to guarantee consistent ordering
             alloy_indices = sorted(index_subset)
